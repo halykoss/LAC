@@ -14,10 +14,10 @@ Legenda difficoltà: ★☆☆☆ facile → ★★★★ difficile
 Dato il programma:
 
 ```python
-x = 5
-f = fun() { x }
-x = 99
-f()
+let x = 5;
+f = fun() { x };
+let x = 99;
+f();
 ```
 
 Che si traduce in:
