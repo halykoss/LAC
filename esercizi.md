@@ -186,22 +186,22 @@ Senza eseguire il codice, rispondi:
 Viene stampato **1** AR (una sola chiamata di funzione: `f(5)`).
 
 ```
-╔═ Record di Attivazione ══════════════════════════════════╗
-║  call frame (a)   [profondità lessicale: 1]              ║
-╠══════════════════════════════════════════════════════════╣
-║  variabili locali:                                       ║
-║    a = 5                                                 ║
-╠══════════════════════════════════════════════════════════╣
-║  static link  → [let f]  ...  {x=10, f=<fun(a)>}        ║
-║  dynamic link → [Ambiente globale]  (chiamante)          ║
-╚══════════════════════════════════════════════════════════╝
+╔═ Record di Attivazione ════════════════════════════════╗
+║  call frame (a)   [profondità lessicale: 1]            ║
+╠════════════════════════════════════════════════════════╣
+║  variabili locali:                                     ║
+║    a = 5                                               ║
+╠════════════════════════════════════════════════════════╣
+║  static link  → [let x]  depth=0  {x=10}               ║
+║  dynamic link → [let f]  depth=0  (chiamante)          ║
+╚════════════════════════════════════════════════════════╝
 ```
 
 1. **1 AR** — una sola chiamata
 2. **`a = 5`** — il parametro formale
-3. **Static link** → l'ambiente dove `f` è stata definita (il `Let` che lega `f`), che contiene `x=10`
+3. **Static link** → l'ambiente catturato dalla closure al momento della definizione di `f`, ovvero il frame `[let x]` che contiene `x=10`. **Non** punta a `[let f]`: la closure viene creata quando `Fun` viene valutato, cioè *dentro* il `Let x` ma *prima* che esista il frame `let f`.
 
-Con scoping statico, static link e dynamic link coincidono qui perché `f` è chiamata dallo stesso contesto in cui è definita.
+**Static link ≠ dynamic link**: il dynamic link punta a `[let f]` (il frame da cui viene fatta la chiamata `f(5)`), mentre lo static link punta a `[let x]` (l'env catturato alla definizione).
 
 </details>
 
@@ -227,25 +227,27 @@ Eseguilo con `--display`. Prevedi cosa conterrà il Display **al momento della c
 |-------|-------------|-----------|
 |   0   |      ?      |     ?     |
 |   1   |      ?      |     ?     |
-|   2   |      ?      |     ?     |
 
 <details>
 <summary>Soluzione</summary>
 
 La catena di chiamate è: `g()` → `f(10)`.
 
-- `g` è chiamata dal livello globale (depth 0) → crea un AR a depth **1**
-- `f` è chiamata da dentro `g` (depth 1) → crea un AR a depth **2**
+Con scoping **statico**, la `lex_depth` di un call frame dipende dall'ambiente catturato dalla closure (il parent statico), non dalla profondità dinamica della chiamata:
 
-Al momento della chiamata di `f`:
+- `g`'s closure cattura l'env `[let f]` (depth 0) → g ha `lex_depth = 1`
+- `f`'s closure cattura l'env `[let x]` (depth 0) → f ha `lex_depth = 1`
 
-| depth | AR corrente             | contenuto principale      |
-|-------|-------------------------|---------------------------|
-|   0   | Ambiente globale        | `x=1, f=<fun(a)>, g=<fun>`|
-|   1   | call frame `g` (vuoto)  | *(nessun parametro)*      |
-|   2   | call frame `f (a)`      | `a=10`                    |
+Entrambe le funzioni hanno `lex_depth = 1`, quindi **condividono la stessa cella del Display**. Al momento della chiamata di `f`, il Display mostra:
 
-> Nota: il frame `let y = 2` creato dentro `f` non compare nel Display — non è un call frame.
+| depth | AR corrente             | contenuto principale |
+|-------|-------------------------|----------------------|
+|   0   | Ambiente globale        | `{vuoto}`            |
+|   1   | call frame `f (a)`      | `a=10`               |
+
+> **Nota:** quando `f` viene chiamata, il suo AR **sostituisce** quello di `g` a depth 1 nel Display. L'Ambiente globale è vuoto perché `x`, `f`, `g` vivono nei rispettivi frame `let x`, `let f`, `let g` (non nel frame globale).
+>
+> Il frame `let y = 2` creato dentro `f` non compare nel Display — non è un call frame.
 
 </details>
 
@@ -274,17 +276,22 @@ Confronta gli AR prodotti e rispondi:
 <details>
 <summary>Soluzione</summary>
 
-Il **dynamic link** è sempre lo stesso: punta all'AR del chiamante (`g`), indipendentemente dallo scoping.
+Il **dynamic link** di `f` è lo stesso in entrambi gli scoping: punta al frame `[let x=99]` (il `Let` creato dentro il corpo di `g`, da cui `f` viene chiamata). **Non** punta all'AR di `g` stesso — un frame `Let` non è un AR.
 
 Il **static link** cambia:
-- **Scoping statico**: static link → ambiente di definizione di `f` (il `Let` con `x=1`). `f` vede `x=1` → **1**
-- **Scoping dinamico**: `f` non cattura un ambiente — usa la catena dinamica al momento della chiamata, che include `let x=99` dentro `g`. `f` vede `x=99` → **99**
+- **Scoping statico**: static link → `[let x]` (depth=0), l'env catturato dalla closure alla definizione. `f` vede `x=1` → **1**
+- **Scoping dinamico**: static link **assente** — `f` usa la catena dinamica al momento della chiamata, che ha `x=99` in cima. `f` vede `x=99` → **99**
 
-| Campo        | Scoping statico                  | Scoping dinamico              |
-|--------------|----------------------------------|-------------------------------|
-| static link  | → env di definizione (`x=1`)     | → env di chiamata (`x=99`)    |
-| dynamic link | → AR di `g`                      | → AR di `g`                   |
-| risultato    | **1**                            | **99**                        |
+Cambia anche la **profondità lessicale** dell'AR di `f`:
+- **Statico**: `lex_depth = 1` (parent statico = `[let x]` depth=0)
+- **Dinamico**: `lex_depth = 2` (parent dinamico = `[let x=99]` depth=1, dentro l'AR di `g`)
+
+| Campo        | Scoping statico                       | Scoping dinamico (shallow)              |
+|--------------|---------------------------------------|-----------------------------------------|
+| static link  | → `[let x]` depth=0 {x=1}            | **assente** (nessuna closure catturata) |
+| dynamic link | → `[let x=99]` depth=1 (dentro `g`)  | → `[let x=99]` depth=1 (dentro `g`)    |
+| lex_depth f  | **1**                                 | **2**                                   |
+| risultato    | **1**                                 | **99**                                  |
 
 </details>
 
@@ -318,16 +325,25 @@ Verifica le previsioni con `--display --ar`.
 
 **1. Chiamate di funzione:** 3 — `h()`, poi `g(5)`, poi `f(10)`
 
-**2. Profondità massima:** 3 (depth 0 = globale, depth 1 = `h`, depth 2 = `g`, depth 3 = `f`)
+**2. Profondità massima:** **1**
+
+Con scoping statico, la `lex_depth` dipende dall'env catturato dalla closure:
+- `h`'s closure cattura `[let g]` (depth 0) → `lex_depth = 1`
+- `g`'s closure cattura `[let f]` (depth 0) → `lex_depth = 1`
+- `f`'s closure cattura `[let x]` (depth 0) → `lex_depth = 1`
+
+Tutte e tre le funzioni hanno `lex_depth = 1`: ogni chiamata **sostituisce** la precedente nel Display.
 
 **3. Display al momento della chiamata di `f`:**
 
-| depth | AR             | contenuto                             |
-|-------|----------------|---------------------------------------|
-|   0   | globale        | `x=0, f=<fun(n)>, g=<fun(m)>, h=<fun>`|
-|   1   | call frame `h` | *(nessun parametro)*                  |
-|   2   | call frame `g` | `m=5`                                 |
-|   3   | call frame `f` | `n=10`                                |
+| depth | AR              | contenuto                    |
+|-------|-----------------|------------------------------|
+|   0   | Ambiente globale| `{vuoto}` ¹                  |
+|   1   | call frame `f`  | `n=10`                       |
+
+> ¹ `x`, `f`, `g`, `h` vivono nei frame `let x`, `let f`, `let g`, `let h` — non nel frame globale.
+>
+> Al momento della chiamata di `f`, il suo AR ha sostituito quelli di `h` e `g` a depth 1.
 
 **4. Risultato:** `f(10)` = `10 + x` = `10 + 0` = **10**
 
