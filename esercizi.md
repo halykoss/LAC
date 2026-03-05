@@ -1,4 +1,4 @@
-# Esercizi — Interprete Didattico LAC
+# Esercizi 
 
 Ogni esercizio richiede di **prevedere** il risultato o **costruire** un programma AST.
 Verifica sempre le tue previsioni eseguendo il codice.
