@@ -366,6 +366,10 @@ class Interpreter:
               Nota: con scoping='static' il binding è sempre deep per definizione
                     (le funzioni sono già Closure che catturano alla definizione).
 
+    let_scope    : True  → Let crea un nuovo scope (stile funzionale / lessicale)
+                   False → Let dichiara la variabile nel frame corrente, senza creare
+                           un nuovo ambiente (stile imperativo: C, Java, Python, ...)
+
     debug        : False → solo risultato finale
                    True  → mostra ogni chiamata di funzione e i relativi ambienti
 
@@ -378,6 +382,7 @@ class Interpreter:
         scoping: str = 'static',
         passing: str = 'value',
         binding: str = 'shallow',
+        let_scope: bool = False,
         debug: bool = False,
         show_ar: bool = False,
         show_display: bool = False,
@@ -392,6 +397,7 @@ class Interpreter:
         self.scoping = scoping
         self.passing = passing
         self.binding = binding
+        self.let_scope = let_scope
         self.debug = debug
         self.show_ar = show_ar
         self.show_display = show_display
@@ -488,11 +494,17 @@ class Interpreter:
     def _eval_let(self, expr: Let, env: Env):
         # Valuta il valore nell'ambiente corrente
         val = self.eval(expr.value, env)
-        # Crea un nuovo scope con il binding
-        new_env = Env(parent=env, label=f"let {expr.name}")
-        new_env.define(expr.name, val)
-        # Valuta il body nel nuovo scope
-        return self.eval(expr.body, new_env)
+        if self.let_scope:
+            # Stile FUNZIONALE: crea un nuovo scope visibile solo nel body.
+            # La variabile non esiste fuori dall'espressione let.
+            new_env = Env(parent=env, label=f"let {expr.name}")
+            new_env.define(expr.name, val)
+            return self.eval(expr.body, new_env)
+        else:
+            # Stile IMPERATIVO: dichiara la variabile nel frame corrente.
+            # La variabile resta accessibile anche dopo il body (come in C/Java/Python).
+            env.define(expr.name, val)
+            return self.eval(expr.body, env)
 
     def _eval_fun(self, expr: Fun, env: Env):
         if self.scoping == 'static':
@@ -849,11 +861,13 @@ class Interpreter:
         self._display[0] = global_env   # depth 0 = scope globale
 
         binding_info = self.binding if self.scoping == 'dynamic' else 'n/a (static)'
+        let_info = 'funzionale (nuovo scope)' if self.let_scope else 'imperativo (frame corrente)'
         print("┌" + "─" * 48 + "┐")
         print("│  INTERPRETE DIDATTICO                          │")
         print(f"│  Scoping: {self.scoping:<39}│")
         print(f"│  Passing: {self.passing:<39}│")
         print(f"│  Binding: {binding_info:<39}│")
+        print(f"│  Let:     {let_info:<39}│")
         print(f"│  Debug:   {'on' if self.debug else 'off':<39}│")
         if self.show_ar:
             print(f"│  AR:      on                                     │")
