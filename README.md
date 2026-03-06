@@ -1,6 +1,6 @@
 # Interprete Didattico LAC
 
-Strumento per esplorare interattivamente tre concetti fondamentali dei linguaggi di programmazione:
+Strumento per esplorare interattivamente i concetti fondamentali dei linguaggi di programmazione:
 
 - **Scoping** — statico (lessicale) vs dinamico
 - **Passaggio dei parametri** — per valore, per riferimento, per nome
@@ -26,13 +26,10 @@ python --version
 
 ```
 lac/
-├── interprete.py          # Core: nodi AST, valori runtime, ambiente, interprete
-├── esempi.py              # Entrypoint principale per lanciare gli esempi
-└── esempi_didattici/
-    ├── scoping.py         # Esempi su scoping statico vs dinamico
-    ├── passing.py         # Esempi su passaggio parametri
-    ├── binding.py         # Esempi su shallow/deep binding
-    └── debug_compare.py   # Modalità debug e confronto globale
+├── interprete.py   # Core: nodi AST, valori runtime, ambiente, interprete
+├── esempi.py       # Esempi pronti all'uso (eseguibili da riga di comando)
+├── esercizi.md     # Esercizi guidati con soluzioni
+└── README.md
 ```
 
 ---
@@ -117,6 +114,8 @@ Interpreter(
     scoping      = 'static'   # oppure 'dynamic'
     passing      = 'value'    # oppure 'reference' oppure 'name'
     binding      = 'shallow'  # oppure 'deep' (rilevante solo con scoping='dynamic')
+    let_scope    = False      # False: Let imperativo (dichiara nel frame corrente, default)
+                              # True:  Let funzionale (crea un nuovo scope figlio)
     debug        = False      # True: catena degli ambienti passo-passo
     show_ar      = False      # True: Record di Attivazione ad ogni chiamata
     show_display = False      # True: Display (depth → AR) ad ogni chiamata
@@ -146,7 +145,8 @@ python esempi.py swap_passing --ar --display
 
 ## Note importanti
 
-- `Let` crea sempre un **nuovo scope** (binding locale). Usarlo quando si vuole una variabile locale.
-- `Assign` **aggiorna** una variabile già esistente risalendo la catena degli scope.
+- `Let` con `let_scope=False` (default) dichiara la variabile nel **frame corrente**, come nei linguaggi imperativi. Ridichiarare lo stesso nome sovrascrive il binding esistente.
+- `Let` con `let_scope=True` crea un **nuovo scope figlio**, visibile solo nel `body`. È il comportamento funzionale classico (Haskell, ML, LISP).
+- `Assign` **aggiorna** una variabile già esistente risalendo la catena degli scope (usarlo per gli effetti collaterali).
 - Con passaggio **per riferimento**, l'argomento deve essere una variabile (`Var('x')`), non un'espressione.
 - Con passaggio **per nome**, l'espressione argomento viene rivalutata ogni volta che il parametro viene letto.
