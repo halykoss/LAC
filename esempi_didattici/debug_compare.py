@@ -50,7 +50,7 @@ def full_comparison(debug: bool = False, show_ar: bool = False, show_display: bo
     print("    x = 1")
     print("    n = 10")
     print("    f = fun(arg) { arg + x }")
-    print("    g = fun() { let x = 100 in f(n) }")
+    print("    g = fun() { x = 100; f(n) }")
     print("    g()")
 
     results = {}

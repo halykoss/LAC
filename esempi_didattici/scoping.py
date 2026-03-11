@@ -87,7 +87,7 @@ def nested_scoping(debug: bool = False, show_ar: bool = False, show_display: boo
     print("\n  Pseudo-codice:")
     print("    x = 1")
     print("    f = fun(y) { x = x + y; return x }")
-    print("    g = fun()  { let x = 100; return f(5) }")
+    print("    g = fun()  { x = 100; return f(5) }")
     print("    f(10) + g()")
 
     section("Scoping STATICO")

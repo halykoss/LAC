@@ -30,7 +30,7 @@ def shallow_vs_deep_binding(debug: bool = False, show_ar: bool = False, show_dis
     print("\n  Pseudo-codice:")
     print("    x = 1")
     print("    f = fun() { return x }")
-    print("    apply = fun(g) { let x = 2 in g() }")
+    print("    apply = fun(g) { x = 2; g() }")
     print("    apply(f)")
 
     section("Scoping STATICO")
@@ -53,8 +53,8 @@ def binding_nested(debug: bool = False, show_ar: bool = False, show_display: boo
     """
     x = 0
     f = fun() { x }
-    wrapper = fun(g) { let x = 10 in g() }
-    let x = 99 in wrapper(f)
+    wrapper = fun(g) { x = 10; g() }
+    (fun(x) { wrapper(f) })(99)
     """
     header(
         "BINDING: esempio annidato",
@@ -66,14 +66,15 @@ def binding_nested(debug: bool = False, show_ar: bool = False, show_display: boo
                 Let('wrapper', Fun(['g'],
                         Let('x', Num(10),
                             Call(FunName('g'), []))),
-                 Let('x', Num(99),
-                  Call(FunName('wrapper'), [FunName('f')])))))
+                 Call(Fun(['x'],
+                          Call(FunName('wrapper'), [FunName('f')])),
+                      [Num(99)]))))
 
     print("\n  Pseudo-codice:")
     print("    x = 0")
     print("    f = fun() { return x }")
-    print("    wrapper = fun(g) { let x = 10 in g() }")
-    print("    let x = 99 in wrapper(f)")
+    print("    wrapper = fun(g) { x = 10; g() }")
+    print("    (fun(x) { wrapper(f) })(99)")
 
     section("Scoping STATICO")
     print("  → Risultato atteso: 0")
