@@ -216,7 +216,7 @@ Prevedi il valore finale di `x` con passaggio per **valore**, per **riferimento*
 
 - **Valore**: `n` è una copia di `x`. La modifica non si propaga al chiamante. `x = 3`
 - **Riferimento**: `n` è un alias della cella di `x`. `x = 4`
-- **Nome**: `n` contiene il thunk `Var('x')`. L'assegnamento `n = n+1` rivaluta il thunk (ottiene 3), calcola 4, poi sostituisce il thunk con 4 **solo nel frame locale** — non tocca `x`. `x = 3`
+- **Nome**: `n` è il thunk `Var('x')`. L'assegnamento `n = n+1` rivaluta il thunk (ottiene 3), calcola 4, poi **scrive 4 sulla variabile originale `x` nell'ambiente del chiamante** (semantica ALGOL: sostituzione testuale). `x = 4`
 
 ```python
 program = Let('x', Num(3),
@@ -225,14 +225,14 @@ program = Let('x', Num(3),
 
 Interpreter(passing='value').run(program)      # → 3
 Interpreter(passing='reference').run(program)  # → 4
-Interpreter(passing='name').run(program)       # → 3
+Interpreter(passing='name').run(program)       # → 4
 ```
 
 | Passaggio    | Risultato |
 |--------------|-----------|
 | valore       | 3         |
 | riferimento  | 4         |
-| nome         | 3         |
+| nome         | 4         |
 
 </details>
 
@@ -255,7 +255,7 @@ Prevedi il valore finale di `a` con i tre tipi di passaggio. Per ognuno, spiega 
 
 - **Valore**: `x` è una copia di `a`. L'assegnamento modifica la copia locale. `a = 10`
 - **Riferimento**: `x` è un alias di `a`. `x = 10 + 20 = 30` scrive nella cella condivisa. `a = 30`
-- **Nome**: `x = Thunk(Var('a'))`. L'assegnamento rivaluta il thunk (`a=10`), calcola `10+20=30`, poi scrive 30 nel binding locale di `x` (sostituisce il thunk). La variabile `a` non viene toccata. `a = 10`
+- **Nome**: `x = Thunk(Var('a'))`. L'assegnamento rivaluta il thunk (`a=10`), calcola `10+20=30`, poi **scrive 30 sulla variabile originale `a` nell'ambiente del chiamante** (sostituzione testuale ALGOL). `a = 30`
 
 ```python
 program = Let('a', Num(10),
@@ -265,14 +265,14 @@ program = Let('a', Num(10),
 
 Interpreter(passing='value').run(program)      # → 10
 Interpreter(passing='reference').run(program)  # → 30
-Interpreter(passing='name').run(program)       # → 10
+Interpreter(passing='name').run(program)       # → 30
 ```
 
 | Passaggio    | Risultato |
 |--------------|-----------|
 | valore       | 10        |
 | riferimento  | 30        |
-| nome         | 10        |
+| nome         | 30        |
 
 </details>
 
@@ -383,9 +383,9 @@ Attenzione: `a` viene passata **due volte** come argomento.
 
 - **Valore**: `x` e `y` ricevono copie indipendenti di `a=5`. `x=6`, `y=6`. Risultato: **12**.
 - **Riferimento**: `x` e `y` sono entrambi alias della **stessa cella** di `a`. `x=x+1` aggiorna la cella a 6. `y=y+1` legge 6 dalla stessa cella e la aggiorna a 7. `x+y` = 7+7 = **14**.
-- **Nome**: `x` e `y` sono thunk indipendenti di `Var('a')`. `x=x+1` rivaluta il thunk (ottiene 5), calcola 6, e sostituisce il thunk con 6 **solo nel frame locale** — `a` non cambia. Stesso per `y`. `x+y` = 6+6 = **12**.
+- **Nome**: `x` e `y` sono entrambi thunk di `Var('a')` — **alias per nome della stessa variabile**. `x=x+1` rivaluta il thunk (ottiene `a=5`), calcola 6, e **scrive `a=6`** nell'env del chiamante. `y=y+1` rivaluta il thunk (ottiene ora `a=6`!), calcola 7, e **scrive `a=7`**. `x+y` rivaluta entrambi i thunk: `a=7` + `a=7` = **14**.
 
-Il passaggio per riferimento è l'unico che produce aliasing: modificare `x` cambia anche `y`.
+Per valore `x` e `y` sono copie isolate; per nome e per riferimento si ha aliasing perché entrambi i parametri puntano alla stessa variabile `a`.
 
 ```python
 program = Let('a', Num(5),
@@ -397,14 +397,14 @@ program = Let('a', Num(5),
 
 Interpreter(scoping='static', passing='value').run(program)      # → 12
 Interpreter(scoping='static', passing='reference').run(program)  # → 14
-Interpreter(scoping='static', passing='name').run(program)       # → 12
+Interpreter(scoping='static', passing='name').run(program)       # → 14
 ```
 
-| Passaggio    | Risultato | Nota                           |
-|--------------|-----------|--------------------------------|
-| valore       | 12        | x e y indipendenti             |
-| riferimento  | 14        | x e y alias della stessa cella |
-| nome         | 12        | thunk sostituiti localmente    |
+| Passaggio    | Risultato | Nota                                    |
+|--------------|-----------|-----------------------------------------|
+| valore       | 12        | x e y copie indipendenti                |
+| riferimento  | 14        | x e y alias della stessa cella          |
+| nome         | 14        | x e y alias per nome di `a` (aliasing!) |
 
 </details>
 

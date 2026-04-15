@@ -127,6 +127,27 @@ class Seq:
     exprs: List[Any]
 
 
+@dataclass
+class PostInc:
+    """Post-incremento (a++): restituisce il valore corrente, poi incrementa di 1.
+    Es: PostInc('x')  →  x++
+    Equivalente a:  val = x; x = x + 1; return val
+    Rispetta la semantica di Ref e Thunk: se x è un parametro per riferimento
+    o per nome, l'incremento si propaga alla variabile originale del chiamante.
+    """
+    name: str
+
+
+@dataclass
+class PreInc:
+    """Pre-incremento (++a): incrementa di 1, poi restituisce il nuovo valore.
+    Es: PreInc('x')  →  ++x
+    Equivalente a:  x = x + 1; return x
+    Stessa semantica di PostInc per la scrittura; differisce solo nel valore restituito.
+    """
+    name: str
+
+
 # ════════════════════════════════════════════════════════════════
 # PARTE 2 — VALORI A RUNTIME
 #
@@ -439,6 +460,12 @@ class Interpreter:
 
         elif isinstance(expr, Assign):
             return self._eval_assign(expr, env)
+
+        elif isinstance(expr, PostInc):
+            return self._eval_postinc(expr, env)
+
+        elif isinstance(expr, PreInc):
+            return self._eval_preinc(expr, env)
 
         elif isinstance(expr, Seq):
             return self._eval_seq(expr, env)
@@ -788,27 +815,89 @@ class Interpreter:
         else:
             return self.eval(expr.else_, env)
 
+    # ── Helpers per lettura/scrittura con semantica Ref/Thunk ────
+
+    def _read_name(self, name: str, env: Env):
+        """
+        Legge il valore di una variabile dereferenziando trasparentemente
+        Ref (pass-by-ref) e Thunk (pass-by-name).
+        Usato dagli operatori di incremento per ottenere il valore corrente.
+        """
+        val = env.lookup(name)
+        if isinstance(val, Ref):
+            return val.value
+        elif isinstance(val, Thunk):
+            return self.eval(val.expr, val.env)
+        return val
+
+    def _write_to_name(self, name: str, new_val, env: Env):
+        """
+        Scrive new_val nella variabile 'name' rispettando la semantica corrente:
+        - Ref  → aggiorna la cella condivisa (pass-by-ref)
+        - Thunk + Var → aggiorna l'l-value nell'env del chiamante (pass-by-name ALGOL)
+        - Thunk + non-Var → errore (non è un l-value)
+        - Altro → aggiorna il binding nella catena di scope
+
+        Logica comune a Assign, PostInc e PreInc.
+        """
+        current = env.lookup(name)
+
+        if isinstance(current, Ref):
+            if self.debug:
+                indent = "  " * self._call_depth
+                print(f"{indent}  [REF] {name}: {current.value!r} -> {new_val!r}")
+            current.value = new_val
+
+        elif isinstance(current, Thunk):
+            thunk = current
+            if isinstance(thunk.expr, Var):
+                if self.debug:
+                    indent = "  " * self._call_depth
+                    print(f"{indent}  [NAME] {name} → '{thunk.expr.name}' := {new_val!r}"
+                          f"  (l-value nell'env del chiamante)")
+                thunk.env.update(thunk.expr.name, new_val)
+            else:
+                raise TypeError(
+                    f"Passaggio per nome: '{name}' non è un l-value "
+                    f"(il thunk è '{thunk.expr}', non una variabile)"
+                )
+
+        else:
+            env.update(name, new_val)
+
     def _eval_assign(self, expr: Assign, env: Env):
         """
         Assegnamento a una variabile esistente.
-
-        Comportamento speciale:
-        - Se la variabile contiene un Ref (pass-by-ref),
-          modifica il valore DENTRO la cella → visibile anche al chiamante.
-        - Altrimenti, aggiorna il binding normalmente.
+        La semantica di scrittura (Ref / Thunk / normale) è gestita da _write_to_name.
         """
         new_val = self.eval(expr.value, env)
-        current = env.lookup(expr.name)
+        self._write_to_name(expr.name, new_val, env)
+        return new_val
 
-        if isinstance(current, Ref):
-            # Aggiorna la cella condivisa (effetto visibile al chiamante!)
-            if self.debug:
-                indent = "  " * self._call_depth
-                print(f"{indent}  [REF] {expr.name}: {current.value!r} -> {new_val!r}")
-            current.value = new_val
-        else:
-            env.update(expr.name, new_val)
+    def _eval_postinc(self, expr: PostInc, env: Env):
+        """
+        Post-incremento (a++): restituisce il valore PRIMA dell'incremento.
+        La scrittura rispetta Ref e Thunk esattamente come Assign.
+        """
+        old_val = self._read_name(expr.name, env)
+        new_val = old_val + 1
+        if self.debug:
+            indent = "  " * self._call_depth
+            print(f"{indent}  {expr.name}++  ({old_val!r} → {new_val!r})")
+        self._write_to_name(expr.name, new_val, env)
+        return old_val
 
+    def _eval_preinc(self, expr: PreInc, env: Env):
+        """
+        Pre-incremento (++a): restituisce il valore DOPO l'incremento.
+        La scrittura rispetta Ref e Thunk esattamente come Assign.
+        """
+        old_val = self._read_name(expr.name, env)
+        new_val = old_val + 1
+        if self.debug:
+            indent = "  " * self._call_depth
+            print(f"{indent}  ++{expr.name}  ({old_val!r} → {new_val!r})")
+        self._write_to_name(expr.name, new_val, env)
         return new_val
 
     def _eval_seq(self, expr: Seq, env: Env):

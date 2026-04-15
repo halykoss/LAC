@@ -104,6 +104,8 @@ interp.run(program)
 | `Fun(params, body)`    | Funzione anonima                      | `Fun(['x'], BinOp('*', Var('x'), Num(2)))`   |
 | `Call(f, args)`        | Chiamata di funzione                  | `Call(Var('f'), [Num(3)])`                   |
 | `Assign('x', val)`     | Assegnamento a variabile esistente    | `Assign('x', Num(0))`                        |
+| `PostInc('x')`         | Post-incremento: ritorna `x`, poi `x += 1` | `PostInc('x')`                          |
+| `PreInc('x')`          | Pre-incremento: `x += 1`, poi ritorna `x`  | `PreInc('x')`                           |
 | `Seq([e1, e2, ...])`   | Sequenza (restituisce l'ultima)       | `Seq([Assign('x', Num(1)), Var('x')])`       |
 | `If(cond, then_, else_)` | Condizionale                        | `If(Var('x'), Num(1), Num(0))`               |
 
@@ -149,4 +151,4 @@ python esempi.py swap_passing --ar --display
 - `Let` con `let_scope=True` crea un **nuovo scope figlio**, visibile solo nel `body`. È il comportamento funzionale classico (Haskell, ML, LISP).
 - `Assign` **aggiorna** una variabile già esistente risalendo la catena degli scope (usarlo per gli effetti collaterali).
 - Con passaggio **per riferimento**, l'argomento deve essere una variabile (`Var('x')`), non un'espressione.
-- Con passaggio **per nome**, l'espressione argomento viene rivalutata ogni volta che il parametro viene letto.
+- Con passaggio **per nome**, l'espressione argomento viene rivalutata ogni volta che il parametro viene letto. Assegnare al parametro **modifica la variabile originale nel chiamante** (se l'argomento è una variabile), esattamente come in ALGOL 60: il parametro formale è una sostituzione testuale dell'argomento.

@@ -31,7 +31,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
-esercizi-3.md
 
 # Claude
 claude-*.log

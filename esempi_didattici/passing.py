@@ -40,7 +40,7 @@ def simple_passing(debug: bool = False, show_ar: bool = False, show_display: boo
                 show_ar=show_ar, show_display=show_display).run(program)
 
     section("Passaggio per NOME")
-    print("  → x rimane 5")
+    print("  → x diventa 10  (n è thunk di x; assegnare a n scrive su x nel chiamante)")
     Interpreter(passing='name', debug=debug,
                 show_ar=show_ar, show_display=show_display).run(program)
 
