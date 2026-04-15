@@ -481,8 +481,11 @@ Interpreter(passing='name').run(program)       # → 27
 
 ```
 x = 1
-f    = fun()    { x }
-apply = fun(g)  { let x = 100 in g() }
+func f() { x }
+func apply(g) {
+  x = 100
+  g()
+}
 apply(f)
 ```
 
@@ -536,14 +539,19 @@ dall'ambiente di chi la chiama. La differenza è **quando** l'env viene catturat
 
 ```
 x = 5
-f    = fun() { x }
-g    = fun() { x }
-apply2 = fun(f, g) { f() + (let x = 100 in g()) }
+func f() { x }
+func g() { x }
+func apply2(f, g) {
+  left = f()
+  x = 100
+  right = g()
+  left + right
+}
 apply2(f, g)
 ```
 
 `apply2` chiama `f()` prima di introdurre `x = 100` localmente, poi chiama `g()`
-all'interno di quello scope.
+nello stesso scope locale e somma i due risultati.
 
 Prevedi il risultato con scoping **statico**, **dinamico shallow** e **dinamico deep**.
 
@@ -604,15 +612,20 @@ l'env è determinato prima della chiamata e non può essere alterato da `apply2`
 
 ### Esercizio 3.3 — Tre momenti diversi, tre valori di x (★★★★)
 
-> Questo esercizio richiede `let_scope=True` (stile funzionale) per creare
-> scope annidati distinti.
+> Questo esercizio richiede scope annidati distinti: nel modello dell'interprete
+> corrisponde a `let_scope=True`.
 
 ```
-let x = 1 in          -- (A) x al momento della definizione di f
-  let f = fun() { x } in
-    let x = 50 in     -- (B) x al momento del passaggio di f
-      let apply = fun(g) { let x = 99 in g() } in
-        apply(f)      -- f passata qui, con x = 50 nello scope
+x = 1                  -- (A) x al momento della definizione di f
+func f() { x }
+{
+  x = 50               -- (B) x al momento del passaggio di f
+  func apply(g) {
+    x = 99             -- (C) x al momento della chiamata di g()
+    g()
+  }
+  apply(f)             -- f passata qui, con x = 50 nello scope
+}
 ```
 
 I tre tipi di scoping/binding catturano `x` in tre momenti distinti:
